@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>odata4-test</groupId>
+    <artifactId>odata4-test</artifactId>
+    <packaging>pom</packaging>
+    <version>1.0.0-SNAPSHOT</version>
+    <modules>
+        <module>odata4-server</module>
+        <module>odata4-client</module>
+        <module>common</module>
+    </modules>
+
+    <properties>
+        <odata.version>2.4.1</odata.version>
+        <spring-boot.version>1.5.2.RELEASE</spring-boot.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.sdl</groupId>
+                <artifactId>odata_api</artifactId>
+                <version>${odata.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.sdl</groupId>
+                <artifactId>odata_edm</artifactId>
+                <version>${odata.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.sdl</groupId>
+                <artifactId>odata_service</artifactId>
+                <version>${odata.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.sdl</groupId>
+                <artifactId>odata_controller</artifactId>
+                <version>${odata.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.sdl</groupId>
+                <artifactId>odata_common</artifactId>
+                <version>${odata.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.sdl</groupId>
+                <artifactId>odata_renderer</artifactId>
+                <version>${odata.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.sdl</groupId>
+                <artifactId>odata_client</artifactId>
+                <version>${odata.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter</artifactId>
+                <version>${spring-boot.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-web</artifactId>
+                <version>${spring-boot.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-tomcat</artifactId>
+                <version>${spring-boot.version}</version>
+
+            </dependency>
+
+
+            <!-- https://mvnrepository.com/artifact/com.googlecode.cqengine/cqengine -->
+            <dependency>
+                <groupId>com.googlecode.cqengine</groupId>
+                <artifactId>cqengine</artifactId>
+                <version>2.9.3</version>
+            </dependency>
+
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.2</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

@@ -1,0 +1,8 @@
+server:
+    port: 8080
+
+
+logging:
+    level:
+        ROOT: INFO
+        com.sdl.odata.unmarshaller.atom.ODataAtomParser: INFO
