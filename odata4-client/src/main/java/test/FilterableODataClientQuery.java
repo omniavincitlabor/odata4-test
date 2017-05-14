@@ -38,8 +38,8 @@ public class FilterableODataClientQuery extends AbstractODataClientQuery {
         }
         setEntityType(builder.entityType);
         setEntityKey(builder.entityKeys == null || builder.entityKeys.isEmpty()
-                             ? null
-                             : builder.entityKeys.get(0).keyValue);
+                ? null
+                : builder.entityKeys.get(0).keyValue.toString());
 
         this.entityKeys = builder.entityKeys;
         this.filterList = builder.filterList;
@@ -53,7 +53,14 @@ public class FilterableODataClientQuery extends AbstractODataClientQuery {
             query.append(generateParameters());
         }
         try {
-            return URLEncoder.encode(query.toString(), "UTF-8");
+            String temp = URLEncoder.encode(query.toString(), "UTF-8");
+            if (filterList != null) {
+                for (Filter filter : filterList) {
+                    final String subTemp = URLEncoder.encode(filter.property, "UTF-8");
+                    temp = temp.replace(subTemp, filter.property);
+                }
+            }
+            return temp;
         } catch (UnsupportedEncodingException e) {
             return query.toString();
         }
@@ -70,11 +77,7 @@ public class FilterableODataClientQuery extends AbstractODataClientQuery {
             parameters.append(FILTER_PREFIX);
 
             for (Filter filter : filterList) {
-                if (filter.quote) {
-                    parameters.append(String.format("%s %s '%s'", filter.property, filter.operation.oDataOperation, filter.value));
-                } else {
-                    parameters.append(String.format("%s %s %s", filter.property, filter.operation.oDataOperation, filter.value));
-                }
+                parameters.append(filter.getFilterString());
                 if (++filterParameterCounter < filterList.size()) {
                     parameters.append(" and ");
                 }
@@ -87,7 +90,7 @@ public class FilterableODataClientQuery extends AbstractODataClientQuery {
 
         if (expandParameters != null) {
             parameters.append(EXPAND_PREFIX);
-            Iterator iterator = expandParameters.iterator();
+            final Iterator iterator = expandParameters.iterator();
             parameters.append(String.format("%s", iterator.next()));
             while (iterator.hasNext()) {
                 parameters.append(String.format(",%s", iterator.next()));
@@ -107,8 +110,8 @@ public class FilterableODataClientQuery extends AbstractODataClientQuery {
         final FilterableODataClientQuery that = (FilterableODataClientQuery) o;
 
         return Objects.equals(getEntityType(), that.getEntityType()) &&
-               Objects.equals(filterList, that.filterList) &&
-               Objects.equals(expandParameters, that.expandParameters);
+                Objects.equals(filterList, that.filterList) &&
+                Objects.equals(expandParameters, that.expandParameters);
     }
 
     @Override
@@ -152,7 +155,12 @@ public class FilterableODataClientQuery extends AbstractODataClientQuery {
 
     private String appendEntityKeySuffix(final String entityName) {
         if (entityKeys != null && !entityKeys.isEmpty()) {
-            final String temp = entityKeys.stream().map(EntityKey::toString).collect(Collectors.joining(","));
+            final String temp;
+            if (entityKeys.size() == 1) {
+                temp = entityKeys.get(0).valueString();
+            } else {
+                temp = entityKeys.stream().map(EntityKey::toString).collect(Collectors.joining(","));
+            }
             return format("%s(%s)", entityName, temp);
         }
         return entityName;
@@ -194,17 +202,17 @@ public class FilterableODataClientQuery extends AbstractODataClientQuery {
             return this;
         }
 
-        public Builder withEntityKey(final String entityKeyValue, final boolean quoteIt) {
+        public Builder withEntityKey(final String keyName, final Object entityKeyValue) {
             if (this.entityKeys == null) {
                 entityKeys = new ArrayList<>();
             }
             this.entityKeys.clear();
-            this.entityKeys.add(new EntityKey(entityKeyValue, quoteIt));
+            this.entityKeys.add(new EntityKey(keyName, entityKeyValue));
             return this;
         }
 
-        public Builder andEntityKey(final String entityKeyValue, final boolean quoteIt) {
-            this.entityKeys.add(new EntityKey(entityKeyValue, quoteIt));
+        public Builder andEntityKey(final String keyName, final Object entityKeyValue) {
+            this.entityKeys.add(new EntityKey(keyName, entityKeyValue));
             return this;
         }
 
@@ -213,17 +221,40 @@ public class FilterableODataClientQuery extends AbstractODataClientQuery {
         }
     }
 
-    public static class Filter {
+    public static class Filter implements ObjectTypeAwareJsonProducer {
         private final String property;
         private final FilterOperation operation;
-        private final String value;
-        private final boolean quote;
+        private final FilterFunction function;
+        private final Object value;
 
-        public Filter(final String property, final FilterOperation operation, final String value, final boolean quote) {
+        public Filter(final String property, final FilterOperation operation, final Object value) {
             this.property = property;
             this.operation = operation;
             this.value = value;
-            this.quote = quote;
+            this.function = null;
+        }
+
+        public Filter(final String property, final FilterFunction function, final Object value) {
+            this.property = property;
+            this.operation = null;
+            this.value = value;
+            this.function = function;
+        }
+
+        public String getFilterString() {
+            if (operation != null) {
+                return String.format(
+                        "%s %s %s",
+                        property,
+                        operation.oDataOperation,
+                        getStringValue(value));
+            } else {
+                return String.format(
+                        "%s(%s, %s)",
+                        function.oDataFunction,
+                        property,
+                        getStringValue(value));
+            }
         }
 
         @Override
@@ -235,15 +266,26 @@ public class FilterableODataClientQuery extends AbstractODataClientQuery {
                 return false;
             }
             final Filter filter = (Filter) o;
-            return quote == filter.quote &&
-                   Objects.equals(property, filter.property) &&
-                   operation == filter.operation &&
-                   Objects.equals(value, filter.value);
+            return Objects.equals(property, filter.property) &&
+                    operation == filter.operation &&
+                    Objects.equals(value, filter.value);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(property, operation, value, quote);
+            return Objects.hash(property, operation, value);
+        }
+    }
+
+    public enum FilterFunction {
+        STARTSWITH("startswith"),
+        CONTAINS("contains"),
+        ENDSWITH("endswith");
+
+        private final String oDataFunction;
+
+        FilterFunction(final String oDataFunction) {
+            this.oDataFunction = oDataFunction;
         }
     }
 
@@ -262,13 +304,13 @@ public class FilterableODataClientQuery extends AbstractODataClientQuery {
         }
     }
 
-    public static class EntityKey {
-        private final String keyValue;
-        private final boolean quote;
+    public static class EntityKey implements ObjectTypeAwareJsonProducer{
+        private final String keyName;
+        private final Object keyValue;
 
-        public EntityKey(final String keyValue, final boolean quote) {
+        public EntityKey(final String keyName, final Object keyValue) {
+            this.keyName = keyName;
             this.keyValue = keyValue;
-            this.quote = quote;
         }
 
         @Override
@@ -280,22 +322,23 @@ public class FilterableODataClientQuery extends AbstractODataClientQuery {
                 return false;
             }
             final EntityKey entityKey = (EntityKey) o;
-            return quote == entityKey.quote &&
-                   Objects.equals(keyValue, entityKey.keyValue);
+            return Objects.equals(keyName, entityKey.keyName) &&
+                    Objects.equals(keyValue, entityKey.keyValue);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(keyValue, quote);
+            return Objects.hash(keyName, keyValue);
         }
 
         @Override
         public String toString() {
-            if (quote) {
-                return format("'%s'", keyValue);
-            } else {
-                return format("%s", keyValue);
-            }
+            return keyName + "=" + getStringValue(keyValue);
+        }
+
+        public String valueString() {
+            return getStringValue(keyValue);
         }
     }
+
 }

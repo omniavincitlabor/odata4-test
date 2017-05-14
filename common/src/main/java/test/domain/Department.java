@@ -5,15 +5,13 @@ import com.sdl.odata.api.edm.annotations.EdmEntitySet;
 import com.sdl.odata.api.edm.annotations.EdmNavigationProperty;
 import com.sdl.odata.api.edm.annotations.EdmProperty;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/**
- *
- */
 @EdmEntity(namespace = "SDL.OData.Example", key = "id", containerName = "SDLExample")
 @EdmEntitySet
-public class Company implements Comparable<Company> {
+public class Department implements Comparable<Department> {
 
     @EdmProperty(name = "id", nullable = false)
     private long id;
@@ -21,15 +19,24 @@ public class Company implements Comparable<Company> {
     @EdmProperty(name = "name", nullable = false)
     private String name;
 
-    @EdmNavigationProperty(name = "departments", nullable = true, partner = "company")
-    private List<Department> departments;
+    @EdmNavigationProperty(name = "company", nullable = true)
+    private Company company;
 
-    public Company(final long id, final String name) {
+    @EdmNavigationProperty(name = "persons", nullable = true, partner = "department")
+    private List<Person> persons;
+
+    public Department(final long id, final String name, final Company company) {
         this.id = id;
         this.name = name;
+        this.company = company;
+
+        if (company.getDepartments() == null) {
+            company.setDepartments(new ArrayList<>());
+        }
+        company.getDepartments().add(this);
     }
 
-    public Company() {
+    public Department() {
 
     }
 
@@ -49,12 +56,12 @@ public class Company implements Comparable<Company> {
         this.name = name;
     }
 
-    public List<Department> getDepartments() {
-        return departments;
+    public List<Person> getPersons() {
+        return persons;
     }
 
-    public void setDepartments(final List<Department> departments) {
-        this.departments = departments;
+    public void setPersons(final List<Person> persons) {
+        this.persons = persons;
     }
 
     @Override
@@ -65,9 +72,9 @@ public class Company implements Comparable<Company> {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        final Company company = (Company) o;
-        return id == company.id &&
-               Objects.equals(name, company.name);
+        final Department department = (Department) o;
+        return id == department.id &&
+                Objects.equals(name, department.name);
     }
 
     @Override
@@ -76,7 +83,7 @@ public class Company implements Comparable<Company> {
     }
 
     @Override
-    public int compareTo(final Company o) {
+    public int compareTo(final Department o) {
         if (name.compareTo(o.getName()) == 0) {
             return Long.compare(id, o.getId());
         }
@@ -85,9 +92,9 @@ public class Company implements Comparable<Company> {
 
     @Override
     public String toString() {
-        return "Company{"
-               + "id=" + id
-               + ", name='" + name + '\''
-               + '}';
+        return "Department{"
+                + "id=" + id
+                + ", name='" + name + '\''
+                + '}';
     }
 }

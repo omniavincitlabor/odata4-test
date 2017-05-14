@@ -11,6 +11,7 @@ import test.services.GetAverageAge;
 import test.services.GetAveragePersonAge;
 import test.services.GetBlubb;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -34,10 +35,16 @@ public class TestDataSourceConfiguration {
                 new School(2, "bar1234", SchoolType.SECONDARY)
         );
 
+        final List<Department> departments = Arrays.asList(
+                new Department(1, "Finance", companyList.get(0)),
+                new Department(2, "Production", companyList.get(0)),
+                new Department(3, "Finance", companyList.get(1))
+        );
+
         final List<Person> personList = Arrays.asList(
-                new Person("MyHero", "Darkwing", "Duck", 23, 4, companyList.get(0), schoolList.get(1)),
-                new BlubbPerson("Sidekick", "Launchpad", "McQuack", 35, companyList.get(0), schoolList.get(0), 3),
-                new Person("Waddlemeyer", "Gosalyn", "Mallard", 9, 25, companyList.get(1), schoolList.get(1)));
+                new Person("MyHero", "Darkwing", "Duck", 23, 4, departments.get(0), schoolList.get(1)),
+                new BlubbPerson("Sidekick", "Launchpad", "McQuack", 35, departments.get(1), schoolList.get(0), 3),
+                new Person("Waddlemeyer", "Gosalyn", "Mallard", 9, 25, departments.get(2), schoolList.get(1)));
 
         try {
             for (Person person : personList) {
@@ -50,6 +57,10 @@ public class TestDataSourceConfiguration {
 
             for (School school : schoolList) {
                 testDataSource.create(null, school, null);
+            }
+
+            for (Department department : departments) {
+                testDataSource.create(null, department, null);
             }
         } catch(Throwable t) {
             //ignore
@@ -69,6 +80,7 @@ public class TestDataSourceConfiguration {
             public void registerEntities(final ODataEdmRegistry oDataEdmRegistry) {
                 oDataEdmRegistry.registerClasses(Arrays.asList(
                         Person.class,
+                        Department.class,
                         Company.class,
                         BlubbPerson.class,
                         School.class,

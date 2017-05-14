@@ -19,10 +19,10 @@ public class BlubbPerson extends Person {
                        final String firstName,
                        final String lastName,
                        final int age,
-                       final Company company,
+                       final Department department,
                        final School school,
                        final int blubb) {
-        super(personId, firstName, lastName, age, blubb, company, school);
+        super(personId, firstName, lastName, age, blubb, department, school);
         this.blubb = blubb;
     }
 
@@ -42,7 +42,7 @@ public class BlubbPerson extends Person {
                + ", lastName='" + getLastName() + '\''
                + ", age=" + getAge()
                + ", foo=" + getFoo()
-               + ", company=" + getCompany()
+               + ", department=" + getDepartment()
                + ", school=" + getSchool()
                + ", blubb=" + blubb
                + '}';

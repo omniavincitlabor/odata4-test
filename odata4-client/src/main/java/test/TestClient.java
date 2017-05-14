@@ -1,16 +1,11 @@
 package test;
 
 
-import com.sdl.odata.client.BasicODataClientQuery;
-import com.sdl.odata.client.BoundFunctionClientQuery;
 import com.sdl.odata.client.ClientPropertiesBuilder;
 import com.sdl.odata.client.DefaultODataClient;
 import com.sdl.odata.client.ODataV4ClientComponentsProvider;
 import com.sdl.odata.client.api.ODataClientQuery;
-import test.domain.BlubbPerson;
-import test.domain.Company;
-import test.domain.Person;
-import test.domain.School;
+import test.domain.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,11 +23,12 @@ public class TestClient {
         classes.add(Person.class.getName());
         classes.add(BlubbPerson.class.getName());
         classes.add(Company.class.getName());
+        classes.add(Department.class.getName());
         classes.add(School.class.getName());
 
 
         final ClientPropertiesBuilder cpb = new ClientPropertiesBuilder()
-                .withServiceUri("http://localhost:8081/example.svc");
+                .withServiceUri("http://localhost:8080/example.svc");
         final ODataV4ClientComponentsProvider componentsProvider = new ODataV4ClientComponentsProvider(classes, cpb.build());
         // Create and configure the client
         final DefaultODataClient client = new DefaultODataClient();
@@ -41,9 +37,9 @@ public class TestClient {
         client.configure(componentsProvider);
 
         //Basic Query with Expand
-        ODataClientQuery query = new BasicODataClientQuery.Builder()
+        ODataClientQuery query = new FilterableODataClientQuery.Builder()
                 .withEntityType(Person.class)
-                .withExpandParameters("company")
+                .withExpandParameters("department")
                 .withExpandParameters("school")
                 .build();
 
@@ -53,21 +49,21 @@ public class TestClient {
         //Single-Object-Query
         query = new FilterableODataClientQuery.Builder()
                 .withEntityType(Person.class)
-                .withExpandParameters("company")
+                .withExpandParameters("department")
                 .withExpandParameters("school")
-                .withEntityKey("MyHero", true)
+                .withEntityKey("id", "MyHero")
                 .build();
 
-        entities = (List<Object>) client.getEntities(Collections.emptyMap(), query);
-        System.out.println(entities);
+        Object entity = client.getEntity(Collections.emptyMap(), query);
+        System.out.println(entity);
 
         //Function Query with Parameter
-        query = new BoundFunctionClientQuery.Builder()
+        query = new MyBoundFunctionClientQuery.Builder()
                 .withBoundEntityName("Persons")
                 .withEntityType(Person.class)
                 .withNameSpace("SDL.OData.Example")
                 .withFunctionName("GetAllAboveAge")
-                .withFunctionParameter("age", "20")
+                .withFunctionParameter("age", 20)
                 .build();
 
         entities = (List<Object>) client.getEntities(Collections.emptyMap(), query);
@@ -76,12 +72,11 @@ public class TestClient {
         //Complex Query
         query = new FilterableODataClientQuery.Builder()
                 .withEntityType(Person.class)
-                .withExpandParameters("company")
+                .withExpandParameters("department")
                 .withExpandParameters("school")
                 .withFilter(new FilterableODataClientQuery.Filter("age",
                                                                   IS_GREATER_THAN,
-                                                                  "20",
-                                                                  false))
+                                                                  20))
                 .build();
 
         entities = (List<Object>) client.getEntities(Collections.emptyMap(), query);
@@ -89,15 +84,19 @@ public class TestClient {
 
         //Join-Query
         query = new JoinODataClientQuery.Builder()
-                .withEntityType(Person.class)
-                .withJoinPropertyName("persons")
-                .withLeftQuery(new BasicODataClientQuery.Builder()
+                .withEntityType(Department.class)
+                .withJoinPropertyName("departments")
+                .withLeftQuery(new FilterableODataClientQuery.Builder()
                                        .withEntityType(Company.class)
-                                       .withEntityKey("1")
+                                       .withEntityKey("id", 1)
                                        .build())
-                .withRightQuery(new BasicODataClientQuery.Builder()
-                                        .withEntityType(Person.class)
-                                        .withFilterMap("firstName", "Darkwing")
+                .withRightQuery(new FilterableODataClientQuery.Builder()
+                                        .withEntityType(Department.class)
+                                        .withFilter(
+                                                new FilterableODataClientQuery.Filter(
+                                                        "name",
+                                                        FilterableODataClientQuery.FilterFunction.STARTSWITH,
+                                                        "Fin"))
                                         .build())
                 .build();
 
@@ -106,26 +105,26 @@ public class TestClient {
 
         //Nested Join-Query
         query = new JoinODataClientQuery.Builder()
-                .withEntityType(Person.class)
+                .withEntityType(School.class)
                 .withJoinPropertyName("school")
                 .withLeftQuery(new JoinODataClientQuery.Builder()
                                        .withEntityType(Person.class)
                                        .withJoinPropertyName("persons")
-                                       .withLeftQuery(new BasicODataClientQuery.Builder()
-                                                              .withEntityType(Company.class)
-                                                              .withEntityKey("1")
+                                       .withLeftQuery(new FilterableODataClientQuery.Builder()
+                                                              .withEntityType(Department.class)
+                                                              .withEntityKey("id", 1)
                                                               .build())
                                        .withRightQuery(new FilterableODataClientQuery.Builder()
                                                                .withEntityType(Person.class)
-                                                               .withEntityKey("MyHero", true)
+                                                               .withEntityKey("id", "MyHero")
                                                                .build())
                                        .build())
-                .withRightQuery(new BasicODataClientQuery.Builder()
+                .withRightQuery(new FilterableODataClientQuery.Builder()
                                         .withEntityType(School.class)
                                         .build())
                 .build();
 
-        entities = (List<Object>) client.getEntities(Collections.emptyMap(), query);
-        System.out.println(entities);
+        entity = client.getEntity(Collections.emptyMap(), query);
+        System.out.println(entity);
     }
 }

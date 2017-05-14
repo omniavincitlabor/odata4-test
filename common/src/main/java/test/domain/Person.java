@@ -29,8 +29,8 @@ public class Person implements Comparable<Person> {
     @EdmProperty(name = "foo", nullable = false)
     private int foo;
 
-    @EdmNavigationProperty(name = "company", nullable = true)
-    private Company company;
+    @EdmNavigationProperty(name = "department", nullable = true)
+    private Department department;
 
     @EdmNavigationProperty(name = "school", nullable = true)
     private School school;
@@ -40,7 +40,7 @@ public class Person implements Comparable<Person> {
                   final String lastName,
                   final int age,
                   final int foo,
-                  final Company company,
+                  final Department department,
                   final School school) {
         this.personId = personId;
         this.firstName = firstName;
@@ -48,13 +48,13 @@ public class Person implements Comparable<Person> {
         this.age = age;
         this.foo = foo;
 
-        this.company = company;
+        this.department = department;
         this.school = school;
 
-        if (company.getPersons() == null) {
-            company.setPersons(new ArrayList<>());
+        if (department.getPersons() == null) {
+            department.setPersons(new ArrayList<>());
         }
-        company.getPersons().add(this);
+        department.getPersons().add(this);
 
         if (school.getPersons() == null) {
             school.setPersons(new ArrayList<>());
@@ -105,12 +105,12 @@ public class Person implements Comparable<Person> {
         this.foo = foo;
     }
 
-    public Company getCompany() {
-        return company;
+    public Department getDepartment() {
+        return department;
     }
 
-    public void setCompany(final Company company) {
-        this.company = company;
+    public void setDepartment(final Department department) {
+        this.department = department;
     }
 
     public School getSchool() {
@@ -134,12 +134,12 @@ public class Person implements Comparable<Person> {
                Objects.equals(personId, person.personId) &&
                Objects.equals(firstName, person.firstName) &&
                Objects.equals(lastName, person.lastName) &&
-               Objects.equals(company, person.company);
+               Objects.equals(department, person.department);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(personId, firstName, lastName, age, company);
+        return Objects.hash(personId, firstName, lastName, age, department);
     }
 
     @Override
@@ -148,7 +148,7 @@ public class Person implements Comparable<Person> {
                 .comparing(Person::getFirstName)
                 .thenComparing(Person::getLastName)
                 .thenComparingInt(Person::getAge)
-                .thenComparing(Person::getCompany)
+                .thenComparing(Person::getDepartment)
                 .thenComparing(Person::getSchool);
         return comparator.compare(this, o);
     }
@@ -161,7 +161,7 @@ public class Person implements Comparable<Person> {
                + ", lastName='" + lastName + '\''
                + ", age=" + age
                + ", foo=" + foo
-               + ", company=" + company
+               + ", department=" + department
                + ", school=" + school
                + '}';
     }

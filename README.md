@@ -26,7 +26,7 @@ http://localhost:8080/example.svc/$metadata#
 
 #### Entity Collection with Inheritance
 
-http://localhost:8080/example.svc/Persons?$expand=company \
+http://localhost:8080/example.svc/Persons?$expand=department \
 (TestClient: see "Basic Query with Expand")
 
 * Navigation Properties are present in JSON-Result **but not** in ATOM-Result
@@ -65,28 +65,35 @@ Error-Message: "The URI contains an incorrectly specified $filter option"
 http://localhost:8080/example.svc/Persons?$filter=age add foo gt 30
 
 * CQEngine integration seems to work ;-)
-* No ODataClientQuery-Implementation currently 
+* No ODataClientQuery-Implementation currently
 
 **Field in Nested Object**
 
-http://localhost:8080/example.svc/Persons?$filter=company/name eq 'foo'&$expand=company
+http://localhost:8080/example.svc/Persons?$filter=department/company/name eq 'foo'&$expand=department
 
 * CQEngine integration seems to work ;-)
 
 **Nested Filter in Expand**
 
-http://localhost:8080/example.svc/Companies?$expand=persons($filter=age gt 30)
+http://localhost:8080/example.svc/Companies?$expand=departments($filter=startswith(name,'Fin'))
 
 * **not working**
 (Filtering is not applied)
 
+**Nested Expand**
+
+http://localhost:8080/example.svc/Companies?$expand=departments($expand=persons)&$format=json
+
+* **not working**
+(Nested objects are not displayed)
+
 
 #### Joins
 
-http://localhost:8080/example.svc/Companies(1)/persons?$filter=age gt 30&$format=json \
+http://localhost:8080/example.svc/Companies(1)/departments?$filter=startswith(name,'Fin')&$format=json \
 (TestClient: see "Join-Query")
 
-http://localhost:8080/example.svc/Companies(1)/persons('MyHero')/school?$format=json \
+http://localhost:8080/example.svc/Departments(1)/persons('MyHero')/school?$format=json \
 (TestClient: see "Nested Join-Query")
 
 * works

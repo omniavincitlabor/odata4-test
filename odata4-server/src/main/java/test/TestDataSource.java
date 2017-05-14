@@ -11,10 +11,7 @@ import com.sdl.odata.api.processor.datasource.TransactionalDataSource;
 import com.sdl.odata.api.processor.link.ODataLink;
 import scala.Option;
 
-import test.domain.BlubbPerson;
-import test.domain.Company;
-import test.domain.Person;
-import test.domain.School;
+import test.domain.*;
 
 import java.util.Arrays;
 import java.util.List;
@@ -26,10 +23,12 @@ import java.util.concurrent.ConcurrentMap;
  */
 public class TestDataSource implements IndexedCollectionDataSource {
 
-    private static List<Class<?>> SUITABLE_CLASSES = Arrays.asList(Person.class, BlubbPerson.class, Company.class, School.class);
+    private static List<Class<?>> SUITABLE_CLASSES = Arrays.asList(
+            Person.class, BlubbPerson.class, Department.class, Company.class, School.class);
 
     private ConcurrentMap<String, Person> personConcurrentMap = new ConcurrentHashMap<>();
     private ConcurrentMap<Long, Company> companyConcurrentMap = new ConcurrentHashMap<>();
+    private ConcurrentMap<Long, Department> departmentsConcurrentMap = new ConcurrentHashMap<>();
     private ConcurrentMap<Long, School> schoolConcurrentMap = new ConcurrentHashMap<>();
 
 
@@ -54,12 +53,20 @@ public class TestDataSource implements IndexedCollectionDataSource {
             return company;
         }
         if (o instanceof School) {
-            final School company = (School) o;
-            if (schoolConcurrentMap.putIfAbsent(company.getId(), company) != null) {
+            final School school = (School) o;
+            if (schoolConcurrentMap.putIfAbsent(school.getId(), school) != null) {
                 throw new ODataDataSourceException("Could not create entity, already exists");
             }
 
-            return company;
+            return school;
+        }
+        if (o instanceof Department) {
+            final Department department = (Department) o;
+            if (departmentsConcurrentMap.putIfAbsent(department.getId(), department) != null) {
+                throw new ODataDataSourceException("Could not create entity, already exists");
+            }
+
+            return department;
         }
         return null;
     }
@@ -89,11 +96,21 @@ public class TestDataSource implements IndexedCollectionDataSource {
             }
         }
         if (o instanceof School) {
-            final School company = (School) o;
-            if(schoolConcurrentMap.containsKey(company.getId())) {
-                schoolConcurrentMap.put(company.getId(), company);
+            final School school = (School) o;
+            if(schoolConcurrentMap.containsKey(school.getId())) {
+                schoolConcurrentMap.put(school.getId(), school);
 
-                return company;
+                return school;
+            } else {
+                throw new ODataDataSourceException("Unable to update person, entity does not exist");
+            }
+        }
+        if (o instanceof Department) {
+            final Department department = (Department) o;
+            if(departmentsConcurrentMap.containsKey(department.getId())) {
+                departmentsConcurrentMap.put(department.getId(), department);
+
+                return department;
             } else {
                 throw new ODataDataSourceException("Unable to update person, entity does not exist");
             }
@@ -115,8 +132,12 @@ public class TestDataSource implements IndexedCollectionDataSource {
                 companyConcurrentMap.remove(company.getId());
             }
             if (entity.get() instanceof School) {
-                School company = (School) entity.get();
-                schoolConcurrentMap.remove(company.getId());
+                School school = (School) entity.get();
+                schoolConcurrentMap.remove(school.getId());
+            }
+            if (entity.get() instanceof Department) {
+                Department department = (Department) entity.get();
+                departmentsConcurrentMap.remove(department.getId());
             }
         }
     }
@@ -153,6 +174,11 @@ public class TestDataSource implements IndexedCollectionDataSource {
                 if (type.equals(School.class)) {
                     ConcurrentIndexedCollection<School> list = new ConcurrentIndexedCollection<>();
                     list.addAll(schoolConcurrentMap.values());
+                    return (ConcurrentIndexedCollection<T>) list;
+                }
+                if (type.equals(Department.class)) {
+                    ConcurrentIndexedCollection<Department> list = new ConcurrentIndexedCollection<>();
+                    list.addAll(departmentsConcurrentMap.values());
                     return (ConcurrentIndexedCollection<T>) list;
                 }
                 return new ConcurrentIndexedCollection<>();

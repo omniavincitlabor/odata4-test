@@ -15,7 +15,7 @@
     </modules>
 
     <properties>
-        <odata.version>2.4.1</odata.version>
+        <odata.version>2.4.2</odata.version>
         <spring-boot.version>1.5.2.RELEASE</spring-boot.version>
     </properties>
 

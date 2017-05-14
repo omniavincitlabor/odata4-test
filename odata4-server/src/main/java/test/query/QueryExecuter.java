@@ -1,8 +1,10 @@
 package test.query;
 
+
 import com.googlecode.cqengine.ConcurrentIndexedCollection;
 import com.googlecode.cqengine.attribute.ReflectiveAttribute;
 import com.googlecode.cqengine.attribute.SimpleAttribute;
+import com.googlecode.cqengine.attribute.support.SimpleFunction;
 import com.googlecode.cqengine.query.Query;
 import com.googlecode.cqengine.query.QueryFactory;
 import com.sdl.odata.api.ODataSystemException;
@@ -39,6 +41,7 @@ import com.sdl.odata.api.processor.query.MulOperator$;
 import com.sdl.odata.api.processor.query.NeOperator$;
 import com.sdl.odata.api.processor.query.OrOperator$;
 import com.sdl.odata.api.processor.query.OrderByOperation;
+import com.sdl.odata.api.processor.query.OrderByProperty;
 import com.sdl.odata.api.processor.query.PropertyCriteriaValue;
 import com.sdl.odata.api.processor.query.QueryOperation;
 import com.sdl.odata.api.processor.query.SelectByKeyOperation;
@@ -52,6 +55,7 @@ import com.sdl.odata.edm.model.StructuredTypeImpl;
 import scala.math.BigDecimal;
 import test.TableProvider;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +75,7 @@ public class QueryExecuter<T> {
 
     private final Map<String, SimpleAttribute<T, Comparable>> attributes;
     private ConcurrentIndexedCollection<T> list;
+    private List<Object> queryOptions = new ArrayList<>();
 
     public QueryExecuter(final Class<T> type,
                          final QueryOperation operation,
@@ -89,9 +94,15 @@ public class QueryExecuter<T> {
         final Query<T> query = handleQueryOperation(operation);
         Collection<T> queryResult = null;
         if (query != null) {
-            queryResult =  StreamSupport
-                    .stream(list.retrieve(query).spliterator(), false)
-                    .collect(Collectors.toList());
+            if (queryOptions.isEmpty()) {
+                queryResult = StreamSupport
+                        .stream(list.retrieve(query).spliterator(), false)
+                        .collect(Collectors.toList());
+            } else {
+                queryResult = StreamSupport
+                        .stream(list.retrieve(query, QueryFactory.queryOptions(queryOptions)).spliterator(), false)
+                        .collect(Collectors.toList());
+            }
         } else {
             queryResult = list;
         }
@@ -116,9 +127,9 @@ public class QueryExecuter<T> {
                     .findFirst();
 
             final QueryExecuter<?> qbLeft = new QueryExecuter(javaTypeLeft,
-                                                        ((JoinOperation) operation).getLeftSource(),
-                                                        tableProvider,
-                                                        entityDataModel);
+                    ((JoinOperation) operation).getLeftSource(),
+                    tableProvider,
+                    entityDataModel);
 
             final Collection<?> left = qbLeft.execute();
 
@@ -176,6 +187,13 @@ public class QueryExecuter<T> {
         } else if (operation instanceof ExpandOperation) {
             return handleQueryOperation(((ExpandOperation) operation).getSource());
         } else if (operation instanceof OrderByOperation) {
+            for (OrderByProperty prop : ((OrderByOperation) operation).getOrderByPropertiesAsJava()) {
+                if (prop.getDirection().toString().equals("ASC")) {
+                    queryOptions.add(QueryFactory.orderBy(QueryFactory.ascending(getAttributeForProperty(prop.getPropertyName()))));
+                } else {
+                    queryOptions.add(QueryFactory.orderBy(QueryFactory.descending(getAttributeForProperty(prop.getPropertyName()))));
+                }
+            }
             return handleQueryOperation(((OrderByOperation) operation).getSource());
         } else if (operation instanceof SelectPropertiesOperation) {
             return handleQueryOperation(((SelectPropertiesOperation) operation).getSource());
@@ -210,8 +228,8 @@ public class QueryExecuter<T> {
                 }
             }
             if (criteria instanceof EndsWithMethodCriteria) {
-                final Object rawAttribute = handleCriteriaValue(((ContainsMethodCriteria) criteria).getProperty());
-                final Object rawValue = handleCriteriaValue(((ContainsMethodCriteria) criteria).getStringLiteral());
+                final Object rawAttribute = handleCriteriaValue(((EndsWithMethodCriteria) criteria).getProperty());
+                final Object rawValue = handleCriteriaValue(((EndsWithMethodCriteria) criteria).getStringLiteral());
                 if (rawValue instanceof CharSequence) {
                     final SimpleAttribute<T, CharSequence> attribute = (SimpleAttribute<T, CharSequence>) rawAttribute;
                     final CharSequence value = (CharSequence) rawValue;
@@ -219,8 +237,8 @@ public class QueryExecuter<T> {
                 }
             }
             if (criteria instanceof StartsWithMethodCriteria) {
-                final Object rawAttribute = handleCriteriaValue(((ContainsMethodCriteria) criteria).getProperty());
-                final Object rawValue = handleCriteriaValue(((ContainsMethodCriteria) criteria).getStringLiteral());
+                final Object rawAttribute = handleCriteriaValue(((StartsWithMethodCriteria) criteria).getProperty());
+                final Object rawValue = handleCriteriaValue(((StartsWithMethodCriteria) criteria).getStringLiteral());
                 if (rawValue instanceof CharSequence) {
                     final SimpleAttribute<T, CharSequence> attribute = (SimpleAttribute<T, CharSequence>) rawAttribute;
                     final CharSequence value = (CharSequence) rawValue;
@@ -277,7 +295,7 @@ public class QueryExecuter<T> {
             final Object rawRight = handleCriteriaValue(right);
 
             if ((rawLeft instanceof SimpleAttribute && rawRight instanceof BigDecimal)
-                || (rawLeft instanceof SimpleAttribute && rawRight instanceof SimpleAttribute)) {
+                    || (rawLeft instanceof SimpleAttribute && rawRight instanceof SimpleAttribute)) {
 
                 final SimpleAttribute<T, Comparable> rawAttribute = (SimpleAttribute<T, Comparable>) rawLeft;
 
@@ -350,18 +368,7 @@ public class QueryExecuter<T> {
         }
         if (criteriaValue instanceof PropertyCriteriaValue) {
             final String field = ((PropertyCriteriaValue) criteriaValue).getPropertyName();
-            if (field.contains(".")) {
-                final String[] fields = field.split("\\.");
-                SimpleAttribute baseAttribute = (SimpleAttribute) attributes.get(fields[0]);
-                for (int i = 1; i < fields.length; i++) {
-                    final Map<String, SimpleAttribute<?, Comparable>> attributes = DynamicIndexer
-                            .generateAttributesForPojo(baseAttribute.getAttributeType(), entityDataModel);
-                    baseAttribute = createNestedAttribute(baseAttribute, attributes.get(fields[i]));
-                }
-                return baseAttribute;
-            } else {
-                return attributes.get(field);
-            }
+            return getAttributeForProperty(field);
         }
         if (criteriaValue instanceof LiteralCriteriaValue) {
             return ((LiteralCriteriaValue) criteriaValue).getValue();
@@ -369,11 +376,36 @@ public class QueryExecuter<T> {
         return null;
     }
 
+    private SimpleAttribute getAttributeForProperty(final String field) {
+        if (field.contains(".")) {
+            final String[] fields = field.split("\\.");
+            SimpleAttribute baseAttribute = (SimpleAttribute) attributes.get(fields[0]);
+            for (int i = 1; i < fields.length; i++) {
+                final Map<String, SimpleAttribute<?, Comparable>> attributes = DynamicIndexer
+                        .generateAttributesForPojo(baseAttribute.getAttributeType(), entityDataModel);
+                baseAttribute = createNestedAttribute(baseAttribute, attributes.get(fields[i]));
+            }
+            return baseAttribute;
+        } else {
+            return attributes.get(field);
+        }
+    }
+
     private SimpleAttribute createNestedAttribute(final SimpleAttribute baseAttribute, final SimpleAttribute innerAttribute) {
-        return QueryFactory.attribute(object -> {
-            final Object temp = baseAttribute.getValue(object, null);
-            return innerAttribute.getValue(temp, null);
-        });
+        return QueryFactory.attribute(
+                baseAttribute.getObjectType(),
+                innerAttribute.getAttributeType(),
+                "dynamic",
+                (SimpleFunction<? extends Object, ? extends Object>) object -> {
+                    if (object == null) {
+                        return null;
+                    }
+                    final Object temp = baseAttribute.getValue(object, null);
+                    if (temp == null) {
+                        return null;
+                    }
+                    return innerAttribute.getValue(temp, null);
+                });
     }
 
 
